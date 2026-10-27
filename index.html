@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>四域 × 八状态 · FOV 灵敏度计算器</title>
+<meta name="description" content="以红点、全息、机瞄为绝对基准，统一开镜、开镜开火、陀螺仪、陀螺仪开火四个域；每域覆盖第三人称、第一人称、红点、2X–8X 共八种状态。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23d7ff63'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23090b07' stroke-width='2'/%3E%3Cpath d='M16 4v6M16 22v6M4 16h6M22 16h6' stroke='%23090b07' stroke-width='2'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#070908;
+    --bg-2:#0a0d0b;
+    --panel:#0e1210;
+    --line:rgba(255,255,255,.075);
+    --line-2:rgba(255,255,255,.14);
+    --text:#eef3e7;
+    --muted:#8b9588;
+    --faint:#788376;
+    --lime:#d7ff63;
+    --lime-soft:rgba(215,255,99,.12);
+    --cyan:#8ee8ff;
+    --cyan-soft:rgba(142,232,255,.1);
+    --radius:24px;
+    --mono:"SFMono-Regular","JetBrains Mono","Cascadia Code","Consolas","Liberation Mono",monospace;
+    --sans:"Inter","SF Pro Display",-apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;background:var(--bg)}
+  body{
+    margin:0;
+    min-height:100vh;
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:14px;
+    -webkit-font-smoothing:antialiased;
+    background:
+      radial-gradient(900px 540px at 10% -10%, rgba(215,255,99,.10), transparent 62%),
+      radial-gradient(760px 520px at 96% 4%, rgba(142,232,255,.06), transparent 62%),
+      var(--bg);
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    opacity:.32;
+    background-image:radial-gradient(rgba(255,255,255,.06) 1px, transparent 1px);
+    background-size:24px 24px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 72%);
+    mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 72%);
+  }
+  .wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:0 28px}
+  .visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  /* top bar */
+  .topbar{
+    position:sticky;top:0;z-index:50;
+    border-bottom:1px solid rgba(255,255,255,.06);
+    background:rgba(7,9,8,.72);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+  }
+  .topbar-inner{max-width:1240px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:26px}
+  .brand{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none;flex:0 0 auto}
+  .brand-mark{
+    width:36px;height:36px;border-radius:11px;background:var(--lime);color:#090b07;
+    display:grid;place-items:center;box-shadow:0 0 28px rgba(215,255,99,.22);
+  }
+  .brand-mark svg{width:20px;height:20px;display:block}
+  .brand-name{display:flex;flex-direction:column;line-height:1.2;font-size:13.5px;font-weight:650;letter-spacing:.01em}
+  .brand-name small{font:600 8.5px/1 var(--mono);letter-spacing:.2em;color:var(--faint);margin-top:5px}
+  .top-links{display:flex;gap:4px;margin-left:auto}
+  .top-links a{padding:8px 14px;border-radius:999px;color:var(--muted);text-decoration:none;font-size:12.5px;transition:color .18s,background .18s}
+  .top-links a:hover{color:var(--text);background:rgba(255,255,255,.05)}
+  .top-status{
+    display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;
+    font:500 10px/1 var(--mono);letter-spacing:.06em;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:rgba(255,255,255,.02);
+  }
+  .live-dot{width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:0 0 10px var(--lime)}
+
+  /* hero */
+  .hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(340px,.65fr);gap:52px;align-items:end;padding:72px 0 42px}
+  .eyebrow{display:flex;align-items:center;gap:11px;color:var(--lime);font:600 10px/1 var(--mono);letter-spacing:.2em;margin-bottom:22px}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--lime);opacity:.75}
+  h1{font-size:clamp(42px,6vw,74px);line-height:1.02;letter-spacing:-.045em;margin:0 0 22px;font-weight:600}
+  h1 .accent{background:linear-gradient(100deg,#f0ffc0,var(--lime) 52%,#a4e63e);-webkit-background-clip:text;background-clip:text;color:transparent}
+  h1 .h1-state{white-space:nowrap}
+  .hero-copy p{max-width:610px;margin:0;color:var(--muted);font-size:14px;line-height:1.85;text-wrap:balance}
+  .hero-panel{
+    border:1px solid var(--line);border-radius:var(--radius);padding:20px;
+    background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.012));
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    box-shadow:0 26px 70px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .hero-panel-label{font:600 9px/1 var(--mono);letter-spacing:.22em;color:var(--faint);margin-bottom:15px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .stat{background:var(--bg-2);padding:14px 12px 13px;display:flex;flex-direction:column;gap:5px}
+  .stat span{font-size:10px;color:var(--muted);white-space:nowrap}
+  .stat strong{font:600 26px/1 var(--mono);letter-spacing:-.045em;color:var(--text)}
+  .stat strong em{font-style:normal;font-size:11px;color:var(--lime);margin-left:2px;letter-spacing:0}
+  .stat small{font-size:9px;color:var(--faint);white-space:nowrap}
+  .hero-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:15px;font:500 10px/1 var(--mono);color:var(--muted)}
+  .hero-foot .sep{width:1px;height:10px;background:var(--line-2);margin:0 3px}
+
+  .domain-dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex:0 0 auto}
+  .domain-dot.cam{background:var(--lime);box-shadow:0 0 9px rgba(215,255,99,.55)}
+  .domain-dot.gyro{background:var(--cyan);box-shadow:0 0 9px rgba(142,232,255,.55)}
+  .domain-dot.fov{background:#9aa79a;box-shadow:none}
+  .group-note{margin:12px 0 0;font-size:10px;line-height:1.7;color:var(--faint);text-wrap:balance}
+  .group-note b{color:var(--muted);font-weight:600}
+
+  /* layout + panels */
+  #calculator,#model{scroll-margin-top:86px}
+  .workspace{display:grid;grid-template-columns:376px minmax(0,1fr);gap:20px;align-items:start}
+  .panel{
+    position:relative;border:1px solid var(--line);border-radius:var(--radius);
+    background:linear-gradient(180deg,rgba(255,255,255,.042),rgba(255,255,255,.012));
+    box-shadow:0 24px 70px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05);
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  }
+  .input-panel{position:relative;max-height:none;overflow:visible}
+  /* 只有视口足够高时才吸顶，避免把陀螺仪口径和操作按钮截在面板内部 */
+  @media (min-width:1181px) and (min-height:1240px){
+    .input-panel{
+      position:sticky;top:82px;max-height:calc(100vh - 100px);
+      overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+      scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.16) transparent;
+    }
+    .input-panel::-webkit-scrollbar{width:7px}
+    .input-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:99px}
+    .input-panel::-webkit-scrollbar-track{background:transparent}
+  }
+  .panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:22px 24px 18px;border-bottom:1px solid var(--line)}
+  .panel-eyebrow{display:block;font:600 9px/1 var(--mono);letter-spacing:.22em;color:var(--faint);margin-bottom:8px}
+  .panel-head h2{margin:0;font-size:17px;line-height:1.2;letter-spacing:-.015em;font-weight:600}
+  .unit-pill{flex:0 0 auto;font:600 10px/1 var(--mono);color:var(--lime);padding:6px 9px;border-radius:7px;background:var(--lime-soft);border:1px solid rgba(215,255,99,.18)}
+
+  /* controls */
+  .control-group{padding:20px 24px}
+  .control-group + .control-group{border-top:1px solid var(--line)}
+  .group-head{display:flex;align-items:center;gap:8px;font:600 10.5px/1 var(--mono);letter-spacing:.09em;color:var(--muted);margin-bottom:18px}
+  .group-head .limit{margin-left:auto;color:var(--faint);font-weight:500;letter-spacing:.03em}
+  .control + .control{margin-top:18px}
+  .control-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+  .control label{display:flex;align-items:baseline;gap:8px;font-size:13px;font-weight:500;color:#dbe3d3;cursor:pointer}
+  .control label small{font:500 9.5px/1 var(--mono);color:var(--faint);letter-spacing:.03em}
+  .num-wrap{display:flex;align-items:center;background:#090c0a;border:1px solid var(--line);border-radius:10px;padding:0 9px 0 2px;transition:border-color .18s,box-shadow .18s}
+  .num-wrap:focus-within{border-color:rgba(215,255,99,.55);box-shadow:0 0 0 3px rgba(215,255,99,.09)}
+  .num-wrap input{
+    width:58px;padding:9px 5px 9px 8px;border:0;outline:0;background:transparent;
+    color:var(--text);font:600 15px/1 var(--mono);text-align:right;appearance:textfield;
+  }
+  .num-wrap input::-webkit-outer-spin-button,.num-wrap input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .num-wrap span{font:500 10px/1 var(--mono);color:var(--faint)}
+  input[type=range]{
+    --fill:33%;--track:var(--lime);
+    display:block;width:100%;height:26px;margin:0;padding:0;background:transparent;
+    appearance:none;-webkit-appearance:none;cursor:pointer;outline:none;
+  }
+  .gyro-group input[type=range]{--track:var(--cyan)}
+  .fov-group input[type=range]{--track:#a8b3a4}
+  input[type=range]::-webkit-slider-runnable-track{
+    height:6px;border-radius:99px;
+    background:linear-gradient(90deg,var(--track) 0,var(--track) var(--fill),rgba(255,255,255,.08) var(--fill),rgba(255,255,255,.08) 100%);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    appearance:none;-webkit-appearance:none;width:18px;height:18px;margin-top:-6px;border-radius:50%;
+    background:var(--track);border:3px solid #090c0a;
+    box-shadow:0 0 0 1px rgba(255,255,255,.08),0 0 18px rgba(215,255,99,.35);
+    transition:transform .15s;
+  }
+  input[type=range]:active::-webkit-slider-thumb{transform:scale(1.14)}
+  input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px rgba(215,255,99,.18),0 0 18px rgba(215,255,99,.35)}
+  input[type=range]::-moz-range-track{height:6px;border-radius:99px;background:rgba(255,255,255,.08)}
+  input[type=range]::-moz-range-progress{height:6px;border-radius:99px;background:var(--track)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;border:3px solid #090c0a;background:var(--track)}
+  input[type=range]:focus-visible::-moz-range-thumb{box-shadow:0 0 0 4px rgba(215,255,99,.18)}
+
+  .mode-block{padding:20px 24px;border-top:1px solid var(--line)}
+  .mode-block > label{display:block;font-size:13px;font-weight:500;color:#dbe3d3;margin-bottom:9px}
+  .segmented{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#090c0a;border:1px solid var(--line);border-radius:12px;padding:4px}
+  .seg-btn{
+    appearance:none;border:0;background:transparent;color:var(--muted);border-radius:9px;
+    padding:10px 8px;min-height:40px;font:600 12px/1.1 var(--sans);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:6px;transition:background .18s,color .18s;
+  }
+  .seg-btn small{font:600 8px/1 var(--mono);padding:3px 5px;border-radius:4px;background:var(--lime-soft);color:var(--lime)}
+  .seg-btn:hover{color:var(--text)}
+  .seg-btn.active{background:var(--lime);color:#090b07}
+  .seg-btn.active small{background:rgba(0,0,0,.14);color:#090b07}
+  .mode-hint{margin:10px 0 0;font-size:10.5px;line-height:1.65;color:var(--faint);min-height:34px;text-wrap:pretty}
+
+  .actions{display:flex;gap:9px;padding:20px 24px 8px}
+  .btn{
+    appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    min-height:44px;padding:12px 16px;border-radius:11px;border:1px solid var(--line);
+    background:rgba(255,255,255,.04);color:var(--text);font:600 12.5px/1 var(--sans);
+    cursor:pointer;transition:transform .16s,background .18s,border-color .18s,box-shadow .18s;
+  }
+  .btn svg{width:15px;height:15px;flex:0 0 auto}
+  .btn.primary{flex:1;background:var(--lime);border-color:var(--lime);color:#090b07;box-shadow:0 8px 28px rgba(215,255,99,.18)}
+  .btn.primary:hover{transform:translateY(-1px);box-shadow:0 12px 34px rgba(215,255,99,.26)}
+  .btn.ghost:hover{background:rgba(255,255,255,.07);border-color:var(--line-2)}
+  .btn:active{transform:translateY(0) scale(.99)}
+  .btn:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+  .micro{padding:0 24px 22px;margin:10px 0 0;font-size:10px;line-height:1.65;color:var(--faint);text-wrap:pretty}
+
+  /* results */
+  .results{display:flex;flex-direction:column;gap:20px;min-width:0}
+  .result-panel{overflow:hidden}
+  .result-meta{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+  .mode-tag{
+    display:inline-flex;align-items:center;gap:7px;
+    font:600 10px/1 var(--mono);color:var(--text);
+    padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.03);
+  }
+  .mode-tag::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime)}
+  .table-scroll{overflow-x:auto}
+  table{width:100%;min-width:700px;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  thead th{
+    padding:10px;border-bottom:1px solid var(--line);white-space:nowrap;
+    font:600 9.5px/1.2 var(--mono);letter-spacing:.08em;color:var(--faint);text-transform:uppercase;
+  }
+  thead tr:first-child th{padding-top:16px;padding-bottom:9px}
+  thead tr:last-child th{padding-top:0;padding-bottom:13px}
+  .th-scope{width:31%;text-align:left;padding-left:24px!important}
+  .th-k{text-align:right;width:11%}
+  .th-cam{text-align:center;color:#cfe89a;background:linear-gradient(180deg,rgba(215,255,99,.07),rgba(215,255,99,.015));border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  .th-gyro{text-align:center;color:#b8e6f3;background:linear-gradient(180deg,rgba(142,232,255,.06),rgba(142,232,255,.015));border-right:1px solid var(--line)}
+  .th-cam small,.th-gyro small{font-size:8.5px;font-weight:500;opacity:.6;margin-left:5px;letter-spacing:0}
+  .th-num{text-align:right;padding-right:16px!important}
+  .th-num.cam-col{background:rgba(215,255,99,.015)}
+  .th-num.gyro-col{background:rgba(142,232,255,.012)}
+  tbody tr{transition:background .16s}
+  tbody tr:hover{background:rgba(255,255,255,.025)}
+  tbody td{padding:13px 10px;border-bottom:1px solid rgba(255,255,255,.055);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:0}
+  @media (min-width:761px){tbody tr.group-start td{border-top:1px solid rgba(255,255,255,.16)}}
+  .scope-cell{text-align:left;padding-left:24px!important}
+  .scope-main{display:flex;align-items:center;gap:9px}
+  .scope-badge{
+    min-width:27px;padding:4px 6px;border-radius:5px;text-align:center;
+    font:600 9px/1 var(--mono);color:var(--lime);
+    background:rgba(215,255,99,.09);border:1px solid rgba(215,255,99,.16);
+  }
+  .scope-badge.base{background:var(--lime);border-color:var(--lime);color:#090b07}
+  .scope-badge.hip{min-width:37px;font-size:8px;letter-spacing:.03em;color:#dbe3d3;background:rgba(255,255,255,.055);border-color:rgba(255,255,255,.14)}
+  .scope-name{font-size:13px;font-weight:550;white-space:nowrap;letter-spacing:-.01em}
+  .scope-sub{margin:6px 0 0 36px;font:500 9.5px/1 var(--mono);color:var(--faint);white-space:nowrap}
+  .scope-cell.hip .scope-sub{margin-left:46px}
+  .k-cell{text-align:right}
+  .k-chip{display:inline-block;padding:5px 7px;border-radius:5px;background:rgba(215,255,99,.07);font:600 10px/1 var(--mono);color:#cfe89a;white-space:nowrap}
+  .k-chip.high{background:rgba(255,196,120,.08);color:#ffd9a0}
+  .value-cell{text-align:right;padding-right:16px!important;white-space:nowrap}
+  .value-cell .val{font:600 19px/1 var(--mono);letter-spacing:-.035em;color:#f2f8e6}
+  .value-cell.gyro .val{color:#d8f6ff}
+  .value-cell .pct{margin-left:2px;font:500 9.5px/1 var(--mono);color:var(--faint)}
+  .value-cell .max-flag{display:inline-block;margin-left:5px;padding:2px 4px;border-radius:3px;font:600 7.5px/1 var(--mono);color:#090b07;background:var(--lime);vertical-align:3px}
+  .table-foot{display:flex;gap:12px;padding:17px 24px 20px;border-top:1px solid var(--line);background:rgba(0,0,0,.12)}
+  .foot-badge{flex:0 0 auto;font:600 8.5px/1 var(--mono);letter-spacing:.14em;color:var(--lime);padding:5px 6px;border-radius:4px;background:var(--lime-soft);height:fit-content}
+  .table-foot p{margin:0;font-size:10.5px;line-height:1.75;color:var(--faint);text-wrap:pretty}
+  .table-foot b{color:var(--muted);font-weight:600}
+
+  /* chart */
+  .chart-panel{overflow:hidden}
+  .chart-panel .panel-head{align-items:center;border-bottom:0;padding-bottom:4px}
+  .chart-caption{font:500 9.5px/1.5 var(--mono);color:var(--faint);text-align:right}
+  .chart-box{padding:4px 16px 0}
+  #curve{display:block;width:100%;height:auto;overflow:visible}
+  #curve text{font-family:var(--mono)}
+  .legend{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:0 24px 22px;font-size:10px;color:var(--faint)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .legend i{display:inline-block;flex:0 0 auto}
+  .legend .line{width:17px;height:2px;border-radius:2px;background:var(--lime);box-shadow:0 0 8px rgba(215,255,99,.45)}
+  .legend .dot{width:7px;height:7px;border-radius:50%}
+  .legend .dot.cam{background:var(--lime)}
+  .legend .dot.gyro{background:var(--cyan);box-shadow:0 0 7px rgba(142,232,255,.5)}
+  .legend .dash{width:17px;height:0;border-top:2px dashed var(--cyan);opacity:.9}
+  .legend-note{margin-left:auto;font:500 9px/1.6 var(--mono);color:var(--faint);text-align:right}
+
+  /* model */
+  .model{display:grid;grid-template-columns:1.12fr .88fr;gap:20px;margin-top:20px}
+  .model-body{padding:22px 24px}
+  .formula{
+    border:1px solid var(--line);border-radius:14px;background:#080b09;
+    padding:16px 18px;font:500 12px/2 var(--mono);color:#b9c4ae;overflow-x:auto;white-space:nowrap;
+  }
+  .formula .accent{color:var(--lime)}
+  .formula .comment{color:var(--faint)}
+  .body-copy{margin:16px 0 0;font-size:11.5px;line-height:1.8;color:var(--muted);text-wrap:pretty}
+  .body-copy b{color:var(--text);font-weight:600}
+  .fov-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
+  .fov-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:rgba(255,255,255,.02);font:500 9.5px/1 var(--mono);color:var(--faint)}
+  .fov-chip b{color:var(--text);font-weight:600}
+  .boundary-list{list-style:none;margin:0;padding:8px 24px 20px}
+  .boundary-list li{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)}
+  .boundary-list li:last-child{border-bottom:0;padding-bottom:4px}
+  .boundary-list .idx{flex:0 0 auto;padding-top:2px;font:600 9px/1 var(--mono);color:var(--lime)}
+  .boundary-list p{margin:0;font-size:11px;line-height:1.72;color:var(--faint);text-wrap:pretty}
+  .boundary-list b{color:var(--text);font-weight:600}
+
+  footer{position:relative;z-index:1;max-width:1240px;margin:44px auto 0;padding:26px 28px 46px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:28px;flex-wrap:wrap;color:var(--faint);font-size:10.5px;line-height:1.75}
+  footer .f-left{flex:0 0 auto;font:600 9px/1.7 var(--mono);letter-spacing:.16em;color:var(--muted)}
+  footer p{margin:0;max-width:760px}
+
+  .toast{
+    position:fixed;left:50%;bottom:28px;z-index:100;
+    transform:translate(-50%,16px);opacity:0;pointer-events:none;
+    display:inline-flex;align-items:center;gap:8px;
+    padding:12px 18px;border-radius:11px;background:var(--lime);color:#090b07;
+    font:700 12px/1 var(--sans);box-shadow:0 14px 44px rgba(215,255,99,.26);
+    transition:opacity .22s,transform .22s;
+  }
+  .toast::before{content:"✓";font-size:13px}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  @keyframes lift{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .hero{animation:lift .6s cubic-bezier(.2,.7,.2,1) both}
+  .input-panel{animation:lift .6s .07s cubic-bezier(.2,.7,.2,1) both}
+  .result-panel{animation:lift .6s .12s cubic-bezier(.2,.7,.2,1) both}
+  .chart-panel{animation:lift .6s .17s cubic-bezier(.2,.7,.2,1) both}
+  .model{animation:lift .6s .21s cubic-bezier(.2,.7,.2,1) both}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+  /* responsive */
+  @media (max-width:1080px){
+    .hero{gap:34px;grid-template-columns:minmax(0,1.2fr) minmax(310px,.8fr)}
+  }
+  @media (max-width:1180px){
+    .workspace{grid-template-columns:1fr}
+    .input-panel{position:static;max-height:none;overflow:visible}
+    .model{grid-template-columns:1fr}
+    .input-panel .control-group{padding-bottom:18px}
+  }
+  @media (min-width:761px) and (max-width:1180px){
+    .input-panel .control-group{display:grid;grid-template-columns:1fr 1fr;column-gap:22px}
+    .input-panel .group-head,.input-panel .group-note{grid-column:1/-1}
+    .input-panel .control + .control{margin-top:0}
+  }
+  @media (max-width:980px){
+    .hero{grid-template-columns:1fr;align-items:start;gap:30px;padding:52px 0 34px}
+    .hero-panel{max-width:560px}
+  }
+  @media (max-width:760px){
+    .wrap{padding:0 18px}
+    .topbar-inner{padding:12px 18px;gap:14px}
+    .top-links{display:none}
+    .top-status{margin-left:auto}
+    .brand-name small{display:none}
+    .hero{padding:40px 0 28px}
+    h1{font-size:clamp(38px,10vw,54px);margin-bottom:18px}
+    .hero-copy p{font-size:13px;line-height:1.8}
+    .hero-panel{max-width:none}
+    .panel{border-radius:20px}
+    .panel-head{padding:18px 18px 15px}
+    .control-group{padding:18px}
+    .mode-block{padding:18px}
+    .actions{padding:18px 18px 6px}
+    .micro{padding:0 18px 18px}
+    .table-scroll{overflow:visible;padding:0 14px 14px}
+    table{min-width:0;border-collapse:separate;border-spacing:0}
+    thead{display:none}
+    tbody{display:grid;gap:10px}
+    tbody tr{
+      display:grid;grid-template-columns:1fr 1fr;gap:10px;
+      padding:14px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.02);
+    }
+    tbody tr:hover{background:rgba(255,255,255,.035)}
+    tbody td{border:0;padding:0;text-align:left}
+    .scope-cell{grid-column:1/-1;padding:0 0 12px!important;border-bottom:1px solid var(--line)}
+    .scope-main{gap:8px}
+    .scope-name{font-size:13px;white-space:normal}
+    .scope-sub,.scope-cell.hip .scope-sub{margin:6px 0 0}
+    .k-cell{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0!important}
+    .k-cell::before{content:"系数 k";font:500 9px/1 var(--mono);color:var(--faint);letter-spacing:.08em}
+    .value-cell{
+      display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+      padding:10px 11px!important;text-align:left;
+      border-radius:10px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);
+    }
+    .value-cell.cam{border-color:rgba(215,255,99,.12);background:rgba(215,255,99,.035)}
+    .value-cell.gyro{border-color:rgba(142,232,255,.10);background:rgba(142,232,255,.03)}
+    .value-cell::before{content:attr(data-label);font:500 9px/1 var(--mono);color:var(--faint);letter-spacing:.04em}
+    .value-cell .val{font-size:18px}
+    .table-foot{padding:15px 18px 17px}
+    .chart-box{padding:2px 8px 0}
+    .chart-panel .panel-head{padding-bottom:8px}
+    .legend{padding:0 18px 18px;gap:14px}
+    .legend-note{margin-left:0;flex-basis:100%;text-align:left}
+    .model-body{padding:18px}
+    .boundary-list{padding:6px 18px 16px}
+    .formula{font-size:11px;padding:14px;white-space:normal;line-height:1.9}
+    footer{padding:24px 18px 38px;margin-top:34px}
+  }
+  @media (max-width:420px){
+    .top-status{padding:7px 9px;font-size:9px}
+    .hero-foot{font-size:9px}
+    .stat{padding:11px 9px}
+    .stat strong{font-size:21px}
+    .stat small{display:none}
+    .stat span{font-size:9px}
+    .hero-panel{padding:14px}
+    .scope-name{font-size:12px}
+    .value-cell .val{font-size:17px}
+  }
+  @media (max-width:340px){
+    h1{font-size:34px}
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#" aria-label="四域统一灵敏度计算器">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+          <path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-name">四域统一<small>FOV SENSITIVITY LAB</small></span>
+    </a>
+    <nav class="top-links" aria-label="页面导航">
+      <a href="#calculator">计算器</a>
+      <a href="#model">模型说明</a>
+    </nav>
+    <div class="top-status"><span class="live-dot"></span>tan-law · v2.3</div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="hero-copy">
+      <div class="eyebrow">RED DOT ANCHOR · 55.2°</div>
+      <h1>一套系数，<br><span class="accent">统一四域 · <span class="h1-state">八状态</span></span>。</h1>
+      <p>以红点 / 全息 / 机瞄为绝对基准，用 10m 靶实测 FOV 统一开镜、开镜开火、陀螺仪与陀螺仪开火。每个域都展开第三人称、第一人称、红点、2X–8X 共 8 种状态，全部共用同一组 k。</p>
+    </div>
+    <aside class="hero-panel" aria-label="模型概览">
+      <div class="hero-panel-label">MODEL SNAPSHOT</div>
+      <div class="stats">
+        <div class="stat"><span>红点锚点</span><strong>55.2<em>°</em></strong><small>实测反推</small></div>
+        <div class="stat"><span>状态覆盖</span><strong>8<em>档</em></strong><small>TPP → 8X</small></div>
+        <div class="stat"><span>统一域</span><strong>4<em>域</em></strong><small>共用一组 k</small></div>
+      </div>
+      <div class="hero-foot">
+        <span class="domain-dot cam"></span>镜头 ≤ 300%
+        <span class="sep"></span>
+        <span class="domain-dot gyro"></span>陀螺仪 ≤ 600%
+      </div>
+    </aside>
+  </section>
+
+  <div class="workspace" id="calculator">
+    <aside class="panel input-panel">
+      <div class="panel-head">
+        <div><span class="panel-eyebrow">INPUT</span><h2>基准与视野</h2></div>
+        <span class="unit-pill">视野 % · FOV °</span>
+      </div>
+
+      <div class="control-group fov-group">
+        <div class="group-head"><span class="domain-dot fov"></span>不开镜视野<span class="limit">60–120%</span></div>
+        <div class="control">
+          <div class="control-head">
+            <label for="nFovTpp">第三人称 <small>游戏视野</small></label>
+            <div class="num-wrap"><input type="number" id="nFovTpp" min="60" max="120" step="1" value="80" inputmode="decimal" aria-label="游戏内第三人称不开镜视野百分比"><span>%</span></div>
+          </div>
+          <input type="range" id="rFovTpp" min="60" max="120" step="1" value="80" aria-label="游戏内第三人称不开镜视野百分比滑块">
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <label for="nFovFpp">第一人称 <small>游戏视野</small></label>
+            <div class="num-wrap"><input type="number" id="nFovFpp" min="60" max="120" step="1" value="90" inputmode="decimal" aria-label="游戏内第一人称不开镜视野百分比"><span>%</span></div>
+          </div>
+          <input type="range" id="rFovFpp" min="60" max="120" step="1" value="90" aria-label="游戏内第一人称不开镜视野百分比滑块">
+        </div>
+        <p class="group-note">游戏内视野单位是 <b>%</b>；当前版本按 80% / 90% / 103% 对应水平 FOV 80°/90°/103° 计算。TPP/倍镜 80/90 与 FPP 80/90/103 均已实测。</p>
+      </div>
+
+      <div class="control-group">
+        <div class="group-head"><span class="domain-dot cam"></span>镜头域<span class="limit">0–300%</span></div>
+        <div class="control">
+          <div class="control-head">
+            <label for="nAds">开镜 <small>B_ads</small></label>
+            <div class="num-wrap"><input type="number" id="nAds" min="0" max="300" step="1" value="100" inputmode="numeric" aria-label="开镜红点基准"><span>%</span></div>
+          </div>
+          <input type="range" id="rAds" min="0" max="300" step="1" value="100" aria-label="开镜红点基准滑块">
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <label for="nAdsf">开镜开火 <small>B_adsf</small></label>
+            <div class="num-wrap"><input type="number" id="nAdsf" min="0" max="300" step="1" value="100" inputmode="numeric" aria-label="开镜开火红点基准"><span>%</span></div>
+          </div>
+          <input type="range" id="rAdsf" min="0" max="300" step="1" value="100" aria-label="开镜开火红点基准滑块">
+        </div>
+      </div>
+
+      <div class="control-group gyro-group">
+        <div class="group-head"><span class="domain-dot gyro"></span>陀螺仪域<span class="limit">0–600%</span></div>
+        <div class="control">
+          <div class="control-head">
+            <label for="nGyro">陀螺仪 <small>B_gyro</small></label>
+            <div class="num-wrap"><input type="number" id="nGyro" min="0" max="600" step="1" value="300" inputmode="numeric" aria-label="陀螺仪红点基准"><span>%</span></div>
+          </div>
+          <input type="range" id="rGyro" min="0" max="600" step="1" value="300" aria-label="陀螺仪红点基准滑块">
+        </div>
+        <div class="control">
+          <div class="control-head">
+            <label for="nGyrof">陀螺仪开火 <small>B_gyrof</small></label>
+            <div class="num-wrap"><input type="number" id="nGyrof" min="0" max="600" step="1" value="300" inputmode="numeric" aria-label="陀螺仪开火红点基准"><span>%</span></div>
+          </div>
+          <input type="range" id="rGyrof" min="0" max="600" step="1" value="300" aria-label="陀螺仪开火红点基准滑块">
+        </div>
+      </div>
+
+      <div class="mode-block">
+        <label id="modeLabel">陀螺仪口径</label>
+        <div class="segmented" role="group" aria-labelledby="modeLabel">
+          <button type="button" class="seg-btn active" data-mode="screen" aria-pressed="true">屏幕等距 <small>推荐</small></button>
+          <button type="button" class="seg-btn" data-mode="angular" aria-pressed="false">角度 1:1</button>
+        </div>
+        <select id="gyroMode" class="visually-hidden" aria-hidden="true" tabindex="-1">
+          <option value="screen">屏幕等距</option>
+          <option value="angular">角度 1:1</option>
+        </select>
+        <p class="mode-hint" id="modeHint">高倍镜按 k 缩小，TPP / FPP 按 k 放大；准星在屏幕上的位移比例与红点一致。</p>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn primary" id="copyBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-8A2.5 2.5 0 0 0 3 6.5v8A2.5 2.5 0 0 0 5.5 17H8" stroke-linecap="round"/></svg>
+          复制配置
+        </button>
+        <button type="button" class="btn ghost" id="resetBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 9a8 8 0 1 1 .8 7" stroke-linecap="round"/><path d="M4 4v5h5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          重置
+        </button>
+      </div>
+      <p class="micro">示例：TPP 80% / FPP 90%，开镜 100% / 开火 100% / 陀螺仪 300% / 陀螺仪开火 300%。灵敏度输入会按各域上限自动截断。</p>
+    </aside>
+
+    <section class="results">
+      <div class="panel result-panel">
+        <div class="panel-head">
+          <div><span class="panel-eyebrow">OUTPUT</span><h2>全状态输出</h2></div>
+          <div class="result-meta">
+            <span class="mode-tag" id="modeTag">屏幕等距</span>
+            <span class="unit-pill">单位 %</span>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table id="resultTable">
+            <caption class="visually-hidden">四域八状态灵敏度输出</caption>
+            <thead>
+              <tr>
+                <th rowspan="2" class="th-scope">倍镜 / 状态</th>
+                <th rowspan="2" class="th-k">k</th>
+                <th colspan="2" class="th-cam"><span class="domain-dot cam"></span> 镜头域 <small>≤300%</small></th>
+                <th colspan="2" class="th-gyro"><span class="domain-dot gyro"></span> 陀螺仪域 <small>≤600%</small></th>
+              </tr>
+              <tr>
+                <th class="th-num cam-col">开镜</th><th class="th-num cam-col">开火</th>
+                <th class="th-num gyro-col">陀螺仪</th><th class="th-num gyro-col">陀螺仪开火</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="table-foot">
+          <span class="foot-badge">READ</span>
+          <p><b>高倍镜数值低不是“变钝”</b>，而是抵消倍镜放大后的视觉加速；<b>TPP / FPP 的 k &gt; 100%</b> 则是因为不开镜视野比红点更宽。屏幕等距下四个域共用同一组 k，只改红点基准 B；角度 1:1 时陀螺仪两域改用 1（取基准值），镜头两域仍用 k；上限只截断结果，不改变 k。<br>不开镜 k 按光学 FOV 计算，已扣除第三人称相机后移，不能拿腰射靶像素直接除。k 列 160.50% 即无量纲系数 1.6050；镜头 300% 上限可能先截断 TPP / FPP。</p>
+        </div>
+      </div>
+
+      <div class="panel chart-panel">
+        <div class="panel-head">
+          <div><span class="panel-eyebrow">CURVE</span><h2>倍镜段系数曲线</h2></div>
+          <span class="chart-caption">仅倍镜段 · 红点 = 100%</span>
+        </div>
+        <div class="chart-box" id="chartBox">
+          <svg id="curve" role="img" aria-label="灵敏度系数曲线"></svg>
+        </div>
+        <div class="legend">
+          <span><i class="line"></i>镜头 k（tan 律）</span>
+          <span id="gyroLegend"><i class="dot gyro" id="gyroLegendIcon"></i><span id="gyroLegendText">陀螺仪 屏幕等距 · 与 k 重合</span></span>
+          <span class="legend-note">TPP / FPP 的 k &gt; 1，不绘入曲线以免压缩倍镜段</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="model" id="model">
+    <div class="panel">
+      <div class="panel-head">
+        <div><span class="panel-eyebrow">MODEL</span><h2>核心公式</h2></div>
+        <span class="unit-pill">%</span>
+      </div>
+      <div class="model-body">
+        <div class="formula">
+          S = <span class="accent">clamp</span>( round( B × k ), 0, cap ) <span class="comment">// 单位：%</span><br>
+          k = tan(FOV<sub>状态</sub> / 2) / tan(FOV<sub>红点</sub> / 2) = 1 / m<br>
+          s ∈ { TPP, FPP, 1X, 2X, 3X, 4X, 6X, 8X }<br>
+          cap = <span class="accent">300</span>（开镜 / 开镜开火）或 <span class="accent">600</span>（陀螺仪 / 陀螺仪开火）
+        </div>
+        <p class="body-copy">四个域 × 八个状态共用同一组 k；开火域如果要更稳，只能整体乘一个常数，例如 <b>B_adsf = 1.1 × B_ads</b>，不能给单个状态加数值。TPP / FPP 的 k 可以大于 1：视野更宽，保持同样的屏幕位移比例就需要更高数值。TPP / FPP 输入为游戏内视野 <b>%</b>，红点与倍镜显示为水平 <b>FOV °</b>。</p>
+        <div class="fov-chips" aria-label="游戏内视野与各倍镜 FOV">
+          <span class="fov-chip">TPP <b id="chipTpp">80.0%</b></span>
+          <span class="fov-chip">FPP <b id="chipFpp">90.0%</b></span>
+          <span class="fov-chip">红点 <b>55.2°</b></span>
+          <span class="fov-chip">2X <b>44.3°</b></span>
+          <span class="fov-chip">3X <b>26.7°</b></span>
+          <span class="fov-chip">4X <b>20.0°</b></span>
+          <span class="fov-chip">6X <b>13.3°</b></span>
+          <span class="fov-chip">8X <b>11.0°</b></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div><span class="panel-eyebrow">BOUNDARY</span><h2>必须知道的边界</h2></div>
+      </div>
+      <ul class="boundary-list">
+        <li><span class="idx">01</span><p><b>后坐力不是灵敏度。</b>灵敏度只统一“你动多少 → 镜头转多少”；枪口自己跳多少是加性扰动，模型不能抵消。</p></li>
+        <li><span class="idx">02</span><p><b>TPP/倍镜 80/90 各含 7 张实机图。</b>每组都是第三人称 + 红点 + 2X–8X；同一倍镜在两组里的红靶像素差 &lt;0.3%，变化的只有第三人称视野。FPP 另有 80/90/103 三张，红心尺寸按 tan 律变化。</p></li>
+        <li><span class="idx">03</span><p><b>红点不是 45°。</b>不开镜是第三人称，相机在角色后方；去掉相机后移后，红点相对腰射约 1.6×，对应 55.2°。</p></li>
+        <li><span class="idx">04</span><p><b>上限不同，系数相同。</b>镜头 300% / 陀螺仪 600% 只是 B 的取值范围，不是两套 k；600% 不代表系数翻倍。</p></li>
+        <li><span class="idx">05</span><p><b>TPP / FPP 的 k &gt; 1 是正常的。</b>不开镜视野比红点宽，m &lt; 1 只表示“视野更宽”，不是灵敏度更低；FPP 80/90/103 已实测，仍按游戏独立视野输入计算。</p></li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span class="f-left">MEASURED AT 2400×1080<br>10M TARGET · 20:9</span>
+  <p>红点锚点 55.2° 由 3/4/6 倍与标称 80/M 视场互相校验。TPP/倍镜 80/90 各 7 张实机图，FPP 80/90/103 三张；FPP 红心尺寸随 tan 律变化。本工具是几何 / 灵敏度换算，不修改游戏文件；不同版本、机型、后坐力与陀螺仪噪声需自行微调。</p>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite">已复制</div>
+
+<script>
+const RED_DOT_FOV = 55.20;
+const SCOPES = [
+  {name:'红点 / 全息 / 机瞄', short:'1X', fov:55.20, m:1.000000, k:1.000000, base:true},
+  {name:'2 倍镜', short:'2X', fov:44.35, m:1.282755, k:0.779572},
+  {name:'3 倍镜', short:'3X', fov:26.68, m:2.204892, k:0.453537},
+  {name:'4 倍镜', short:'4X', fov:20.00, m:2.964192, k:0.337360},
+  {name:'6 倍镜', short:'6X', fov:13.34, m:4.469801, k:0.223724},
+  {name:'8 倍镜', short:'8X', fov:11.04, m:5.410285, k:0.184833},
+];
+
+const HIP_STATES = [
+  {key:'tpp', name:'第三人称不开镜', short:'TPP'},
+  {key:'fpp', name:'第一人称不开镜', short:'FPP'}
+];
+
+const CAM_MAX = 300;
+const GYRO_MAX = 600;
+const FOV_MIN = 60;
+const FOV_MAX = 120;
+const $ = id => document.getElementById(id);
+const FIELDS = [
+  {key:'Ads', max:CAM_MAX},
+  {key:'Adsf', max:CAM_MAX},
+  {key:'Gyro', max:GYRO_MAX},
+  {key:'Gyrof', max:GYRO_MAX},
+];
+const FOV_FIELDS = [
+  {key:'FovTpp', def:80},
+  {key:'FovFpp', def:90}
+];
+
+const clamp = (v, max, min = 0) => Math.max(min, Math.min(max, v));
+const rnd = v => Math.round(v);
+const kForFov = fov => Math.tan(fov * Math.PI / 360) / Math.tan(RED_DOT_FOV * Math.PI / 360);
+
+function readFov(id, fallback){
+  const n = Number($(id).value);
+  return Number.isFinite(n) && n > 0 ? clamp(n, FOV_MAX, FOV_MIN) : fallback;
+}
+
+function getValues(){
+  return {
+    ads: clamp(Number($('nAds').value) || 0, CAM_MAX),
+    adsf: clamp(Number($('nAdsf').value) || 0, CAM_MAX),
+    gyro: clamp(Number($('nGyro').value) || 0, GYRO_MAX),
+    gyrof: clamp(Number($('nGyrof').value) || 0, GYRO_MAX),
+    tpp: readFov('nFovTpp', 80),
+    fpp: readFov('nFovFpp', 90),
+    mode: $('gyroMode').value
+  };
+}
+
+function makeStates(v){
+  const hips = HIP_STATES.map(h => {
+    const fov = v[h.key];
+    const k = kForFov(fov);
+    return {name:h.name, short:h.short, fov, m:1 / k, k, hip:true};
+  });
+  return [...hips, ...SCOPES];
+}
+
+function paintRange(range, value, max, min = 0){
+  range.style.setProperty('--fill', ((value - min) / (max - min) * 100).toFixed(2) + '%');
+}
+
+FIELDS.forEach(({key, max}) => {
+  const range = $('r' + key);
+  const num = $('n' + key);
+
+  range.addEventListener('input', () => {
+    const v = clamp(Number(range.value) || 0, max);
+    num.value = v;
+    paintRange(range, v, max);
+    render();
+  });
+
+  num.addEventListener('input', () => {
+    const raw = num.value;
+    if (raw === '') {
+      range.value = 0;
+      paintRange(range, 0, max);
+      render();
+      return;
+    }
+    const v = clamp(Number(raw) || 0, max);
+    if (Number(raw) !== v) num.value = v;
+    range.value = v;
+    paintRange(range, v, max);
+    render();
+  });
+
+  num.addEventListener('blur', () => {
+    const v = clamp(Number(num.value) || 0, max);
+    num.value = v;
+    range.value = v;
+    paintRange(range, v, max);
+    render();
+  });
+
+  paintRange(range, clamp(Number(num.value) || 0, max), max);
+});
+
+FOV_FIELDS.forEach(({key, def}) => {
+  const range = $('r' + key);
+  const num = $('n' + key);
+  const norm = () => {
+    const n = Number(num.value);
+    return num.value === '' || !Number.isFinite(n) ? def : clamp(n, FOV_MAX, FOV_MIN);
+  };
+
+  range.addEventListener('input', () => {
+    const v = clamp(Number(range.value) || def, FOV_MAX, FOV_MIN);
+    num.value = v;
+    paintRange(range, v, FOV_MAX, FOV_MIN);
+    render();
+  });
+
+  num.addEventListener('input', () => {
+    const v = norm();
+    range.value = v;
+    paintRange(range, v, FOV_MAX, FOV_MIN);
+    render();
+  });
+
+  num.addEventListener('blur', () => {
+    const v = norm();
+    num.value = v;
+    range.value = v;
+    paintRange(range, v, FOV_MAX, FOV_MIN);
+    render();
+  });
+
+  paintRange(range, clamp(Number(num.value) || def, FOV_MAX, FOV_MIN), FOV_MAX, FOV_MIN);
+});
+
+const modeButtons = Array.from(document.querySelectorAll('.seg-btn'));
+const MODE_HINTS = {
+  screen: '高倍镜按 k 缩小，TPP / FPP 按 k 放大；准星在屏幕上的位移比例与红点一致。',
+  angular: '手机转多少度，镜头就转多少度；所有 8 种状态都取 100%，屏幕位移随倍率自然变化。'
+};
+
+function syncModeUI(){
+  const mode = $('gyroMode').value;
+  modeButtons.forEach(btn => {
+    const on = btn.dataset.mode === mode;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', String(on));
+  });
+  $('modeHint').textContent = MODE_HINTS[mode] || MODE_HINTS.screen;
+  const legend = $('gyroLegendIcon');
+  legend.className = mode === 'angular' ? 'dash' : 'dot gyro';
+  $('gyroLegendText').textContent = mode === 'angular'
+    ? '陀螺仪 角度 1:1 · 恒定 100%'
+    : '陀螺仪 屏幕等距 · 与 k 重合';
+}
+
+modeButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    $('gyroMode').value = btn.dataset.mode;
+    syncModeUI();
+    render();
+  });
+});
+$('gyroMode').addEventListener('change', () => { syncModeUI(); render(); });
+
+function render(){
+  const v = getValues();
+  const states = makeStates(v);
+  const cap = [CAM_MAX, CAM_MAX, GYRO_MAX, GYRO_MAX];
+  const tbody = $('resultTable').querySelector('tbody');
+
+  tbody.innerHTML = states.map(s => {
+    const gyroK = v.mode === 'angular' ? 1 : s.k;
+    const coefs = [s.k, s.k, gyroK, gyroK];
+    const bases = [v.ads, v.adsf, v.gyro, v.gyrof];
+    const vals = bases.map((b, i) => Math.min(cap[i], rnd(b * coefs[i])));
+    const flags = bases.map((b, i) => rnd(b * coefs[i]) >= cap[i] && b > 0);
+    const cells = [
+      ['cam','开镜'],
+      ['cam','开火'],
+      ['gyro','陀螺仪'],
+      ['gyro','陀螺仪开火']
+    ];
+    const rowClass = [s.hip ? 'hip-row' : '', s.base ? 'group-start' : ''].filter(Boolean).join(' ');
+    const badgeClass = ['scope-badge', s.base ? 'base' : '', s.hip ? 'hip' : ''].filter(Boolean).join(' ');
+    return `<tr${rowClass ? ` class="${rowClass}"` : ''}>
+      <td class="scope-cell${s.hip ? ' hip' : ''}">
+        <div class="scope-main"><span class="${badgeClass}">${s.short}</span><span class="scope-name">${s.name}</span></div>
+        <div class="scope-sub">水平FOV ${s.fov.toFixed(2)}° · m ${s.m.toFixed(4)}</div>
+      </td>
+      <td class="k-cell" data-label="系数 k"><span class="k-chip${s.k > 1 ? ' high' : ''}">${(s.k * 100).toFixed(2)}%</span></td>
+      ${vals.map((x, i) => `<td class="value-cell ${cells[i][0]}" data-label="${cells[i][1]}"><span class="val">${x}<span class="pct">%</span>${flags[i] ? '<span class="max-flag">MAX</span>' : ''}</span></td>`).join('')}
+    </tr>`;
+  }).join('');
+
+  $('chipTpp').textContent = v.tpp.toFixed(1) + '%';
+  $('chipFpp').textContent = v.fpp.toFixed(1) + '%';
+  $('modeTag').textContent = v.mode === 'angular' ? '角度 1:1' : '屏幕等距';
+  drawCurve(v.mode);
+}
+
+function smoothPath(pts){
+  const n = pts.length;
+  if (n < 2) return '';
+  const dx = [], dy = [], slope = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx[i] = pts[i + 1].x - pts[i].x;
+    dy[i] = pts[i + 1].y - pts[i].y;
+    slope[i] = dy[i] / dx[i];
+  }
+  const m = [slope[0]];
+  for (let i = 1; i < n - 1; i++) {
+    if (slope[i - 1] * slope[i] <= 0) {
+      m[i] = 0;
+    } else {
+      const w1 = 2 * dx[i] + dx[i - 1];
+      const w2 = dx[i] + 2 * dx[i - 1];
+      m[i] = (w1 + w2) / (w1 / slope[i - 1] + w2 / slope[i]);
+    }
+  }
+  m[n - 1] = slope[n - 2];
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const x1 = pts[i].x + dx[i] / 3;
+    const y1 = pts[i].y + m[i] * dx[i] / 3;
+    const x2 = pts[i + 1].x - dx[i] / 3;
+    const y2 = pts[i + 1].y - m[i + 1] * dx[i] / 3;
+    d += ` C ${x1.toFixed(2)} ${y1.toFixed(2)}, ${x2.toFixed(2)} ${y2.toFixed(2)}, ${pts[i + 1].x.toFixed(2)} ${pts[i + 1].y.toFixed(2)}`;
+  }
+  return d;
+}
+
+function drawCurve(mode){
+  const box = $('chartBox');
+  const W = Math.max(320, Math.round(box.clientWidth || 720));
+  const H = W < 560 ? 236 : 276;
+  const svg = $('curve');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+
+  const padL = W < 560 ? 38 : 46;
+  const padR = 18;
+  const padT = 30;
+  const padB = 40;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const baseline = padT + plotH;
+  const ymax = 1.08;
+  const x = i => padL + plotW * i / (SCOPES.length - 1);
+  const y = v => padT + (1 - v / ymax) * plotH;
+
+  let g = `<defs>
+    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d7ff63" stop-opacity=".22"/>
+      <stop offset="100%" stop-color="#d7ff63" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+
+  for (let i = 0; i <= 4; i++) {
+    const v = i / 4;
+    const yy = y(v);
+    g += `<line x1="${padL}" y1="${yy.toFixed(1)}" x2="${W - padR}" y2="${yy.toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>`;
+    g += `<text x="${padL - 9}" y="${(yy + 3.5).toFixed(1)}" text-anchor="end" fill="#626c5f" font-size="9.5">${Math.round(v * 100)}%</text>`;
+  }
+
+  SCOPES.forEach((s, i) => {
+    g += `<line x1="${x(i).toFixed(1)}" y1="${padT}" x2="${x(i).toFixed(1)}" y2="${baseline}" stroke="rgba(255,255,255,.025)" stroke-width="1"/>`;
+    g += `<text x="${x(i).toFixed(1)}" y="${H - 13}" text-anchor="middle" fill="#8b9588" font-size="10">${i === 0 ? '红点' : s.short}</text>`;
+  });
+
+  const pts = SCOPES.map((s, i) => ({x: x(i), y: y(s.k), k: s.k}));
+  const line = smoothPath(pts);
+  const area = `${line} L ${pts[pts.length - 1].x.toFixed(2)} ${baseline.toFixed(2)} L ${pts[0].x.toFixed(2)} ${baseline.toFixed(2)} Z`;
+  g += `<path d="${area}" fill="url(#areaGrad)"/>`;
+  g += `<path d="${line}" fill="none" stroke="#d7ff63" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#softGlow)"/>`;
+
+  if (mode === 'angular') {
+    const gy = y(1);
+    g += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W - padR}" y2="${gy.toFixed(1)}" stroke="#8ee8ff" stroke-width="1.5" stroke-dasharray="5 6" opacity=".9"/>`;
+    g += `<text x="${W - padR}" y="${(gy - 8).toFixed(1)}" text-anchor="end" fill="#8ee8ff" font-size="9.5">陀螺仪 1:1 = 100%</text>`;
+  }
+
+  pts.forEach((p, i) => {
+    g += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${i === 0 ? 5 : 4.2}" fill="#0a0d0b" stroke="#d7ff63" stroke-width="2"/>`;
+    g += `<text x="${p.x.toFixed(1)}" y="${(p.y - 11).toFixed(1)}" text-anchor="middle" fill="#e9f0dc" font-size="10">${Math.round(SCOPES[i].k * 100)}%</text>`;
+    if (mode === 'angular') {
+      g += `<circle cx="${p.x.toFixed(1)}" cy="${y(1).toFixed(1)}" r="3" fill="#8ee8ff"/>`;
+    }
+  });
+
+  svg.innerHTML = g;
+}
+
+let resizeRaf = 0;
+if (typeof ResizeObserver !== 'undefined') {
+  const ro = new ResizeObserver(() => {
+    cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => drawCurve($('gyroMode').value));
+  });
+  ro.observe($('chartBox'));
+}
+
+$('copyBtn').addEventListener('click', async () => {
+  const v = getValues();
+  const modeLabel = v.mode === 'angular' ? '角度 1:1' : '屏幕等距';
+  const lines = ['状态\t水平FOV(°)\tm\tk(%)\t开镜(%)\t开镜开火(%)\t陀螺仪(%)\t陀螺仪开火(%)\t陀螺仪口径'];
+  makeStates(v).forEach(s => {
+    const gyroK = v.mode === 'angular' ? 1 : s.k;
+    lines.push([
+      s.name,
+      s.fov.toFixed(2) + '°',
+      s.m.toFixed(4),
+      (s.k * 100).toFixed(2) + '%',
+      Math.min(CAM_MAX, rnd(v.ads * s.k)) + '%',
+      Math.min(CAM_MAX, rnd(v.adsf * s.k)) + '%',
+      Math.min(GYRO_MAX, rnd(v.gyro * gyroK)) + '%',
+      Math.min(GYRO_MAX, rnd(v.gyrof * gyroK)) + '%',
+      modeLabel
+    ].join('\t'));
+  });
+  const text = lines.join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('已复制全部配置');
+  } catch (e) {
+    fallbackCopy(text);
+  }
+});
+
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  ta.remove();
+  toast(ok ? '已复制全部配置' : '复制失败，请手动选择表格');
+}
+
+$('resetBtn').addEventListener('click', () => {
+  const defaults = {Ads: 100, Adsf: 100, Gyro: 300, Gyrof: 300};
+  FIELDS.forEach(({key, max}) => {
+    const v = defaults[key];
+    $('r' + key).value = v;
+    $('n' + key).value = v;
+    paintRange($('r' + key), v, max);
+  });
+  FOV_FIELDS.forEach(({key, def}) => {
+    $('r' + key).value = def;
+    $('n' + key).value = def;
+    paintRange($('r' + key), def, FOV_MAX, FOV_MIN);
+  });
+  $('gyroMode').value = 'screen';
+  syncModeUI();
+  render();
+  toast('已恢复示例');
+});
+
+let toastTimer;
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+document.querySelectorAll('input[type=number]').forEach(el => {
+  el.addEventListener('wheel', e => {
+    if (document.activeElement !== el) e.preventDefault();
+  }, {passive: false});
+});
+
+syncModeUI();
+render();
+</script>
+</body>
+</html>
