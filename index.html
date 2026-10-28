@@ -192,6 +192,19 @@
   .seg-btn.active small{background:rgba(0,0,0,.14);color:#090b07}
   .mode-hint{margin:10px 0 0;font-size:10.5px;line-height:1.65;color:var(--faint);min-height:34px;text-wrap:pretty}
 
+  .calib{margin-top:16px;padding-top:14px;border-top:1px dashed rgba(255,255,255,.12)}
+  .calib-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .calib-row label{display:flex;flex-direction:column;gap:5px;font:500 9.5px/1.2 var(--mono);color:var(--faint);letter-spacing:.02em}
+  .calib-row input{
+    width:100%;padding:8px 7px;border-radius:8px;border:1px solid var(--line);
+    background:#090c0a;color:var(--text);font:600 12px/1 var(--mono);text-align:center;
+    outline:none;appearance:textfield;
+  }
+  .calib-row input::-webkit-outer-spin-button,.calib-row input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .calib-row input:focus{border-color:rgba(215,255,99,.55);box-shadow:0 0 0 3px rgba(215,255,99,.08)}
+  .calib-btn{width:100%;margin-top:9px;min-height:38px;padding:9px 12px;font-size:11.5px}
+  .calib-out{margin:8px 0 0;font:500 9.5px/1.55 var(--mono);color:var(--faint);min-height:15px}
+
   .actions{display:flex;gap:9px;padding:20px 24px 8px}
   .btn{
     appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -460,22 +473,43 @@
       </div>
 
       <div class="control-group fov-group">
-        <div class="group-head"><span class="domain-dot fov"></span>不开镜视野<span class="limit">60–120%</span></div>
+        <div class="group-head"><span class="domain-dot fov"></span>视觉 FOV · 画面<span class="limit">60–120%</span></div>
         <div class="control">
           <div class="control-head">
-            <label for="nFovTpp">第三人称 <small>游戏视野</small></label>
-            <div class="num-wrap"><input type="number" id="nFovTpp" min="60" max="120" step="1" value="80" inputmode="decimal" aria-label="游戏内第三人称不开镜视野百分比"><span>%</span></div>
+            <label for="nFovTpp">第三人称 <small>视觉视野</small></label>
+            <div class="num-wrap"><input type="number" id="nFovTpp" min="60" max="120" step="1" value="80" inputmode="decimal" aria-label="游戏内第三人称视觉视野百分比"><span>%</span></div>
           </div>
-          <input type="range" id="rFovTpp" min="60" max="120" step="1" value="80" aria-label="游戏内第三人称不开镜视野百分比滑块">
+          <input type="range" id="rFovTpp" min="60" max="120" step="1" value="80" aria-label="游戏内第三人称视觉视野百分比滑块">
         </div>
         <div class="control">
           <div class="control-head">
-            <label for="nFovFpp">第一人称 <small>游戏视野</small></label>
-            <div class="num-wrap"><input type="number" id="nFovFpp" min="60" max="120" step="1" value="90" inputmode="decimal" aria-label="游戏内第一人称不开镜视野百分比"><span>%</span></div>
+            <label for="nFovFpp">第一人称 <small>视觉视野</small></label>
+            <div class="num-wrap"><input type="number" id="nFovFpp" min="60" max="120" step="1" value="90" inputmode="decimal" aria-label="游戏内第一人称视觉视野百分比"><span>%</span></div>
           </div>
-          <input type="range" id="rFovFpp" min="60" max="120" step="1" value="90" aria-label="游戏内第一人称不开镜视野百分比滑块">
+          <input type="range" id="rFovFpp" min="60" max="120" step="1" value="90" aria-label="游戏内第一人称视觉视野百分比滑块">
         </div>
-        <p class="group-note">游戏内视野单位是 <b>%</b>；当前版本按 80% / 90% / 103% 对应水平 FOV 80°/90°/103° 计算。TPP/倍镜 80/90 与 FPP 80/90/103 均已实测。</p>
+        <p class="group-note">视觉 FOV 只决定画面宽度，<b>不参与 TPP/FPP 灵敏度计算</b>。游戏内单位是 %，当前版本 80% / 90% / 103% 对应水平 FOV 80°/90°/103°。</p>
+      </div>
+
+      <div class="control-group sens-group">
+        <div class="group-head"><span class="domain-dot fov"></span>灵敏度 FOV · TPP/FPP<span class="limit">反推</span></div>
+        <div class="control">
+          <div class="control-head">
+            <label for="nFovSens">有效灵敏度 FOV <small>F_sens</small></label>
+            <div class="num-wrap"><input type="number" id="nFovSens" min="60" max="120" step="0.1" value="75" inputmode="decimal" aria-label="TPP与FPP的有效灵敏度FOV角度"><span>°</span></div>
+          </div>
+          <input type="range" id="rFovSens" min="60" max="120" step="0.1" value="75" aria-label="TPP与FPP有效灵敏度FOV滑块">
+        </div>
+        <p class="group-note">灵敏度 FOV 决定同样手势转多快。游戏统一控制在红点 <b>68/69</b> 时给出 TPP/FPP <b>100%</b>，反推约 <b>75–77°</b>，默认 <b>75°</b>。换视觉 FOV 后建议重新反推。</p>
+        <div class="calib">
+          <div class="calib-row">
+            <label>游戏 TPP<input type="number" id="calTpp" value="100" min="0" max="600" step="1" inputmode="numeric"></label>
+            <label>游戏 FPP<input type="number" id="calFpp" value="100" min="0" max="600" step="1" inputmode="numeric"></label>
+            <label>红点<input type="number" id="calRed" value="68" min="0" max="300" step="1" inputmode="numeric"></label>
+          </div>
+          <button type="button" class="btn ghost calib-btn" id="calibBtn">从游戏值反推灵敏度 FOV</button>
+          <p class="calib-out" id="calibOut">按 TPP 100 / 红点 68 反推 ≈ 75.1°</p>
+        </div>
       </div>
 
       <div class="control-group">
@@ -569,7 +603,7 @@
         </div>
         <div class="table-foot">
           <span class="foot-badge">READ</span>
-          <p><b>高倍镜数值低不是“变钝”</b>，而是抵消倍镜放大后的视觉加速；<b>TPP / FPP 的 k &gt; 100%</b> 则是因为不开镜视野比红点更宽。屏幕等距下四个域共用同一组 k，只改红点基准 B；角度 1:1 时陀螺仪两域改用 1（取基准值），镜头两域仍用 k；上限只截断结果，不改变 k。<br>不开镜 k 按光学 FOV 计算，已扣除第三人称相机后移，不能拿腰射靶像素直接除。k 列 160.50% 即无量纲系数 1.6050；镜头 300% 上限可能先截断 TPP / FPP。</p>
+          <p><b>高倍镜数值低不是“变钝”</b>，而是抵消倍镜放大后的视觉加速；<b>TPP / FPP 的 k &gt; 100%</b> 因为不开镜的有效灵敏度视野比红点更宽。屏幕等距下四个域共用同一组 k，只改红点基准 B；角度 1:1 时陀螺仪两域改用 1（取基准值），镜头两域仍用 k；上限只截断结果，不改变 k。<br>TPP / FPP 的 k 按有效灵敏度 FOV（默认 75°）计算，不是画面视觉 FOV；k 列 146.77% 即无量纲系数 1.4677；镜头 300% 上限可能先截断 TPP / FPP。</p>
         </div>
       </div>
 
@@ -599,14 +633,16 @@
       <div class="model-body">
         <div class="formula">
           S = <span class="accent">clamp</span>( round( B × k ), 0, cap ) <span class="comment">// 单位：%</span><br>
-          k = tan(FOV<sub>状态</sub> / 2) / tan(FOV<sub>红点</sub> / 2) = 1 / m<br>
+          倍镜：k = tan(FOV<sub>状态</sub> / 2) / tan(FOV<sub>红点</sub> / 2) = 1 / m<br>
+          TPP/FPP：k = tan(F_sens / 2) / tan(FOV<sub>红点</sub> / 2)<br>
           s ∈ { TPP, FPP, 1X, 2X, 3X, 4X, 6X, 8X }<br>
           cap = <span class="accent">300</span>（开镜 / 开镜开火）或 <span class="accent">600</span>（陀螺仪 / 陀螺仪开火）
         </div>
-        <p class="body-copy">四个域 × 八个状态共用同一组 k；开火域如果要更稳，只能整体乘一个常数，例如 <b>B_adsf = 1.1 × B_ads</b>，不能给单个状态加数值。TPP / FPP 的 k 可以大于 1：视野更宽，保持同样的屏幕位移比例就需要更高数值。TPP / FPP 输入为游戏内视野 <b>%</b>，红点与倍镜显示为水平 <b>FOV °</b>。</p>
-        <div class="fov-chips" aria-label="游戏内视野与各倍镜 FOV">
+        <p class="body-copy">四个域 × 八个状态共用同一组 k；开火域如果要更稳，只能整体乘一个常数，例如 <b>B_adsf = 1.1 × B_ads</b>，不能给单个状态加数值。TPP / FPP 的 k 可以大于 1，但这里用的是<b>有效灵敏度 FOV</b>（约 75°），不是画面上的视觉 FOV（80%/90%/103%）。游戏统一控制在红点 68/69 时把 TPP/FPP 自动填成 100%，反推正是约 75–77°；如果继续用视觉 FOV 计算，TPP/FPP 会被高估到 161%/191%。</p>
+        <div class="fov-chips" aria-label="视觉视野、灵敏度 FOV 与各倍镜 FOV">
           <span class="fov-chip">TPP <b id="chipTpp">80.0%</b></span>
           <span class="fov-chip">FPP <b id="chipFpp">90.0%</b></span>
+          <span class="fov-chip">灵敏度 <b id="chipSens">75.0°</b></span>
           <span class="fov-chip">红点 <b>55.2°</b></span>
           <span class="fov-chip">2X <b>44.3°</b></span>
           <span class="fov-chip">3X <b>26.7°</b></span>
@@ -626,7 +662,7 @@
         <li><span class="idx">02</span><p><b>TPP/倍镜 80/90 各含 7 张实机图。</b>每组都是第三人称 + 红点 + 2X–8X；同一倍镜在两组里的红靶像素差 &lt;0.3%，变化的只有第三人称视野。FPP 另有 80/90/103 三张，红心尺寸按 tan 律变化。</p></li>
         <li><span class="idx">03</span><p><b>红点不是 45°。</b>不开镜是第三人称，相机在角色后方；去掉相机后移后，红点相对腰射约 1.6×，对应 55.2°。</p></li>
         <li><span class="idx">04</span><p><b>上限不同，系数相同。</b>镜头 300% / 陀螺仪 600% 只是 B 的取值范围，不是两套 k；600% 不代表系数翻倍。</p></li>
-        <li><span class="idx">05</span><p><b>TPP / FPP 的 k &gt; 1 是正常的。</b>不开镜视野比红点宽，m &lt; 1 只表示“视野更宽”，不是灵敏度更低；FPP 80/90/103 已实测，仍按游戏独立视野输入计算。</p></li>
+        <li><span class="idx">05</span><p><b>TPP / FPP 用的是灵敏度 FOV，不是视觉 FOV。</b>画面视野 80%/90%/103% 只决定你看到多宽；游戏统一控制反推的灵敏度 FOV 约 75–77°，所以 TPP/FPP 的 k 约 1.47，而不是 1.61/1.91。换视觉 FOV 后建议用左上角“从游戏值反推”重新标定。</p></li>
       </ul>
     </div>
   </section>
@@ -659,6 +695,7 @@ const CAM_MAX = 300;
 const GYRO_MAX = 600;
 const FOV_MIN = 60;
 const FOV_MAX = 120;
+const SENS_FOV_DEFAULT = 75;
 const $ = id => document.getElementById(id);
 const FIELDS = [
   {key:'Ads', max:CAM_MAX},
@@ -668,7 +705,8 @@ const FIELDS = [
 ];
 const FOV_FIELDS = [
   {key:'FovTpp', def:80},
-  {key:'FovFpp', def:90}
+  {key:'FovFpp', def:90},
+  {key:'FovSens', def:SENS_FOV_DEFAULT}
 ];
 
 const clamp = (v, max, min = 0) => Math.max(min, Math.min(max, v));
@@ -688,15 +726,16 @@ function getValues(){
     gyrof: clamp(Number($('nGyrof').value) || 0, GYRO_MAX),
     tpp: readFov('nFovTpp', 80),
     fpp: readFov('nFovFpp', 90),
+    sens: readFov('nFovSens', SENS_FOV_DEFAULT),
     mode: $('gyroMode').value
   };
 }
 
 function makeStates(v){
   const hips = HIP_STATES.map(h => {
-    const fov = v[h.key];
-    const k = kForFov(fov);
-    return {name:h.name, short:h.short, fov, m:1 / k, k, hip:true};
+    const visual = v[h.key];
+    const k = kForFov(v.sens);
+    return {name:h.name, short:h.short, fov:v.sens, visualFov:visual, m:1 / k, k, hip:true};
   });
   return [...hips, ...SCOPES];
 }
@@ -828,7 +867,7 @@ function render(){
     return `<tr${rowClass ? ` class="${rowClass}"` : ''}>
       <td class="scope-cell${s.hip ? ' hip' : ''}">
         <div class="scope-main"><span class="${badgeClass}">${s.short}</span><span class="scope-name">${s.name}</span></div>
-        <div class="scope-sub">水平FOV ${s.fov.toFixed(2)}° · m ${s.m.toFixed(4)}</div>
+        <div class="scope-sub">${s.hip ? `视觉 ${s.visualFov.toFixed(0)}% · 灵敏度FOV ${s.fov.toFixed(2)}°` : `水平FOV ${s.fov.toFixed(2)}°`} · m ${s.m.toFixed(4)}</div>
       </td>
       <td class="k-cell" data-label="系数 k"><span class="k-chip${s.k > 1 ? ' high' : ''}">${(s.k * 100).toFixed(2)}%</span></td>
       ${vals.map((x, i) => `<td class="value-cell ${cells[i][0]}" data-label="${cells[i][1]}"><span class="val">${x}<span class="pct">%</span>${flags[i] ? '<span class="max-flag">MAX</span>' : ''}</span></td>`).join('')}
@@ -837,6 +876,7 @@ function render(){
 
   $('chipTpp').textContent = v.tpp.toFixed(1) + '%';
   $('chipFpp').textContent = v.fpp.toFixed(1) + '%';
+  $('chipSens').textContent = v.sens.toFixed(1) + '°';
   $('modeTag').textContent = v.mode === 'angular' ? '角度 1:1' : '屏幕等距';
   drawCurve(v.mode);
 }
@@ -950,12 +990,12 @@ if (typeof ResizeObserver !== 'undefined') {
 $('copyBtn').addEventListener('click', async () => {
   const v = getValues();
   const modeLabel = v.mode === 'angular' ? '角度 1:1' : '屏幕等距';
-  const lines = ['状态\t水平FOV(°)\tm\tk(%)\t开镜(%)\t开镜开火(%)\t陀螺仪(%)\t陀螺仪开火(%)\t陀螺仪口径'];
+  const lines = ['状态\tFOV(°)\tm\tk(%)\t开镜(%)\t开镜开火(%)\t陀螺仪(%)\t陀螺仪开火(%)\t陀螺仪口径'];
   makeStates(v).forEach(s => {
     const gyroK = v.mode === 'angular' ? 1 : s.k;
     lines.push([
       s.name,
-      s.fov.toFixed(2) + '°',
+      s.fov.toFixed(2) + '°' + (s.hip ? '(灵敏度)' : ''),
       s.m.toFixed(4),
       (s.k * 100).toFixed(2) + '%',
       Math.min(CAM_MAX, rnd(v.ads * s.k)) + '%',
@@ -1002,10 +1042,49 @@ $('resetBtn').addEventListener('click', () => {
     $('n' + key).value = def;
     paintRange($('r' + key), def, FOV_MAX, FOV_MIN);
   });
+  $('calTpp').value = 100;
+  $('calFpp').value = 100;
+  $('calRed').value = 68;
+  $('calibOut').textContent = `按 TPP 100 / 红点 68 反推 ≈ ${fovFromRatio(100, 68).toFixed(1)}°`;
   $('gyroMode').value = 'screen';
   syncModeUI();
   render();
   toast('已恢复示例');
+});
+
+function fovFromRatio(hip, red){
+  const ratio = Math.max(0.0001, Number(hip) || 0) / Math.max(0.0001, Number(red) || 0);
+  const fov = 2 * Math.atan(ratio * Math.tan(RED_DOT_FOV * Math.PI / 360)) * 180 / Math.PI;
+  return clamp(fov, FOV_MAX, FOV_MIN);
+}
+
+function calibrate(){
+  const hip = Number($('calTpp').value);
+  const fpp = Number($('calFpp').value);
+  const red = Number($('calRed').value);
+  if (!(hip > 0) || !(red > 0)) {
+    $('calibOut').textContent = '请填入大于 0 的 TPP 与红点值';
+    return;
+  }
+  const fromTpp = fovFromRatio(hip, red);
+  const fromFpp = fpp > 0 ? fovFromRatio(fpp, red) : fromTpp;
+  const use = fromTpp;
+  const num = $('nFovSens');
+  const range = $('rFovSens');
+  num.value = use.toFixed(1);
+  range.value = use.toFixed(1);
+  paintRange(range, use, FOV_MAX, FOV_MIN);
+  render();
+  const same = Math.abs(fromTpp - fromFpp) < 0.6;
+  $('calibOut').textContent = `TPP 反推 ${fromTpp.toFixed(1)}° · FPP 反推 ${fromFpp.toFixed(1)}°${same ? ' · 一致' : ' · 不一致，已取 TPP'}`;
+  toast(`灵敏度 FOV 已设为 ${use.toFixed(1)}°`);
+}
+
+$('calibBtn').addEventListener('click', calibrate);
+[$('calTpp'), $('calFpp'), $('calRed')].forEach(el => {
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); calibrate(); }
+  });
 });
 
 let toastTimer;
